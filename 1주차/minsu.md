@@ -1,0 +1,27 @@
+# 입문자를 위한 지식
+
+- textContent vs. innerHTML vs. innerText
+- Fetch API는 2015년에 도입됨
+- HTTP METHOD 별도 상수 객체 관리?
+  - HTTP STATUS 별도 상수 객체 맵핑해서 관리?
+- Custom data attribute
+- Vanilla JS - selector
+  - id
+  - class
+  - data attribute
+  - 각 방식 작성 권장 컨벤션 (camelCase/snake_case/kebab-case)
+- 디바운싱과 쓰로틀링
+- 선언적
+- 이벤트 위임/이벤트 버블링
+  - event.target vs. event.currentTarget
+- 즉시 실행 함수
+  - useEffect
+- 함수형 프로그래밍
+- jQuery, Backbone
+- MVC 패턴 with React
+- 양방향 데이터 바인딩 vs. 단방향 데이터 바인딩
+- MVVM
+- 의존성 주입
+- 선언적 코드 vs. 명령형 코드
+- 플럭스 아키텍쳐
+- 관심사 분리 (SOC)
