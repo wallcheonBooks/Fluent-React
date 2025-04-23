@@ -47,3 +47,9 @@
 “React의 본질은 UI를 상태의 함수로 선언하는 방식 + 상태는 단방향으로 흐른다”
 
 이 두 가지가 모든 컴포넌트 설계, 상태관리, 렌더링 전략의 뿌리기때문이다. 이 개념을 이해하지못하면 React를 제대로 사용할 수 없다고 생각한다.
+
+https://youtu.be/5MZbkow5U8o
+
+책의 저자인 Tejas Kumar 의 Understanding React's Fiber Architecture 발표다.
+
+너무 행복해보인다.
