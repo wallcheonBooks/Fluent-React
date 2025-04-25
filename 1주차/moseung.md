@@ -28,3 +28,4 @@ document.querySelectorAll(".item").forEach(el => el.classList.add("active"));
 그래서 리액트는 오히려 단방향으로 제어하여 예측 가능성을 높이고 관심사를 더 명확하게 분리한다.
 
 ## 1-2.3 Knockout
+최초로 MVVM을 적용한 프레임워크
