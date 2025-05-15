@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리액트 아키텍처 비교: Stack vs Fiber</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .stack-panel { background-color: #f8f8ff; }
+        .fiber-panel { background-color: #f0fff0; }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .render-item {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            animation: fadeIn 0.5s;
+        }
+        .render-stack {
+            background-color: #e6e6fa;
+        }
+        .render-fiber {
+            background-color: #e0ffe0;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .ui-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .comparison > div {
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .stack-info { background-color: #f0f0ff; }
+        .fiber-info { background-color: #f0fff0; }
+        .console-log {
+            height: 200px;
+            overflow-y: auto;
+            background-color: #333;
+            color: #f0f0f0;
+            padding: 10px;
+            font-family: monospace;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-stack { color: #add8e6; }
+        .log-fiber { color: #90ee90; }
+    </style>
+</head>
+<body>
+    <h1>리액트 아키텍처 비교: Stack vs Fiber</h1>
+    
+    <div class="controls">
+        <h2>컴포넌트 트리 깊이 설정</h2>
+        <p>더 깊은 컴포넌트 트리일수록 차이가 명확하게 드러납니다.</p>
+        <input type="range" id="depth-slider" min="1" max="20" value="10" class="ui-input">
+        <span id="depth-value">10</span>
+        <p>인위적 지연 시간 (ms): 각 컴포넌트 처리 시 지연 시간</p>
+        <input type="range" id="delay-slider" min="0" max="100" value="20" class="ui-input">
+        <span id="delay-value">20</span>
+    </div>
+
+    <div class="container">
+        <div class="panel stack-panel">
+            <h2>Stack Reconciler</h2>
+            <p>Stack 기반 재귀 호출로 한 번에 전체 트리 처리</p>
+            <button id="runStackReconciler">Stack Reconciler 실행</button>
+            <div id="stackOutput"></div>
+            <div class="progress-bar">
+                <div id="stackProgress" class="progress"></div>
+            </div>
+        </div>
+        
+        <div class="panel fiber-panel">
+            <h2>Fiber Reconciler</h2>
+            <p>작업 단위로 나누어 비동기적으로 처리</p>
+            <button id="runFiberReconciler">Fiber Reconciler 실행</button>
+            <div id="fiberOutput"></div>
+            <div class="progress-bar">
+                <div id="fiberProgress" class="progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <h2>UI 인터랙션 테스트</h2>
+    <p>각 아키텍처가 실행되는 동안 아래 버튼을 클릭해보세요. Fiber는 메인 스레드를 차단하지 않습니다.</p>
+    <div>
+        <button id="interactionButton">이 버튼을 클릭해보세요</button>
+        <span id="clickCounter">버튼 클릭 횟수: 0</span>
+    </div>
+
+    <div class="comparison">
+        <div class="stack-info">
+            <h3>Stack Reconciler 특징</h3>
+            <ul>
+                <li>전체 렌더링 과정을 <strong>중단할 수 없음</strong></li>
+                <li>깊은 <strong>재귀 호출</strong>을 사용</li>
+                <li>메인 스레드를 <strong>차단</strong>하여 사용자 입력 지연 가능</li>
+                <li>트리가 깊을수록 성능 저하 심화</li>
+            </ul>
+        </div>
+        <div class="fiber-info">
+            <h3>Fiber 아키텍처 특징</h3>
+            <ul>
+                <li>작업을 <strong>작은 단위</strong>로 분할하여 처리</li>
+                <li><strong>비동기적</strong> 렌더링 과정</li>
+                <li>작업을 <strong>일시 중지 및 재개</strong> 가능</li>
+                <li>메인 스레드 차단 최소화로 UI 반응성 유지</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>콘솔 로그</h2>
+    <div class="console-log" id="consoleLog"></div>
+
+    <script>
+        function log(message, type = 'default') {
+            const logElement = document.getElementById('consoleLog');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry' + (type ? ` log-${type}` : '');
+            logEntry.textContent = message;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            console.log(message);
+        }
+
+        const depthSlider = document.getElementById('depth-slider');
+        const depthValue = document.getElementById('depth-value');
+        const delaySlider = document.getElementById('delay-slider');
+        const delayValue = document.getElementById('delay-value');
+        
+        depthSlider.addEventListener('input', () => {
+            depthValue.textContent = depthSlider.value;
+        });
+        
+        delaySlider.addEventListener('input', () => {
+            delayValue.textContent = delaySlider.value;
+        });
+
+        const interactionButton = document.getElementById('interactionButton');
+        const clickCounter = document.getElementById('clickCounter');
+        let clicks = 0;
+        
+        interactionButton.addEventListener('click', () => {
+            clicks++;
+            clickCounter.textContent = `버튼 클릭 횟수: ${clicks}`;
+        });
+
+        function simulateHeavyWork(delay) {
+            const start = Date.now();
+            while (Date.now() - start < delay) {
+            }
+        }
+
+        window.requestIdleCallback = window.requestIdleCallback || function(callback) {
+            const start = Date.now();
+            return setTimeout(function() {
+                callback({
+                    didTimeout: false,
+                    timeRemaining: function() {
+                        return Math.max(0, 50 - (Date.now() - start));
+                    }
+                });
+            }, 1);
+        };
+
+        // -------------------- 컴포넌트 클래스 --------------------
+        class Component {
+            constructor(props, depth = 0) {
+                this.props = props || {};
+                this.state = {};
+                this.depth = depth;
+                this.type = this.constructor.name;
+            }
+            
+            setState(partialState) {
+                this.state = { ...this.state, ...partialState };
+            }
+            
+            render() {
+                // 하위 클래스에서 구현
+                throw new Error('Component 클래스의 render() 메서드를 구현해야 합니다.');
+            }
+        }
+
+        // 앱 컴포넌트 (트리의 루트)
+        class App extends Component {
+            render() {
+                const maxDepth = parseInt(depthSlider.value);
+                
+                // 첫 번째 자식은 항상 Header
+                return {
+                    type: 'div',
+                    props: {
+                        children: [
+                            new Header({ title: '샘플 앱' }),
+                            // 재귀적 컴포넌트 트리 생성
+                            this.depth < maxDepth 
+                                ? new Container({ depth: this.depth + 1 }) 
+                                : new Content({ text: `깊이 ${this.depth}에 도달` })
+                        ]
+                    }
+                };
+            }
+        }
+
+        // 헤더 컴포넌트
+        class Header extends Component {
+            render() {
+                return {
+                    type: 'header',
+                    props: {
+                        children: this.props.title
+                    }
+                };
+            }
+        }
+
+        // 컨테이너 컴포넌트 (재귀적으로 중첩)
+        class Container extends Component {
+            render() {
+                const delay = parseInt(delaySlider.value);
+                // 인위적 지연 추가 (복잡한 계산 시뮬레이션)
+                simulateHeavyWork(delay);
+                
+                const maxDepth = parseInt(depthSlider.value);
+                
+                return {
+                    type: 'div',
+                    props: {
+                        className: 'container',
+                        children: [
+                            new Text({ text: `계층 ${this.props.depth}` }),
+                            // 더 깊은 중첩을 위해 재귀적으로 Container 생성
+                            this.props.depth < maxDepth 
+                                ? new Container({ depth: this.props.depth + 1 }) 
+                                : new Content({ text: `최대 깊이 ${this.props.depth}에 도달` })
+                        ]
+                    }
+                };
+            }
+        }
+
+        // 텍스트 컴포넌트
+        class Text extends Component {
+            render() {
+                const delay = parseInt(delaySlider.value) / 2;
+                // 약간의 인위적 지연 추가
+                simulateHeavyWork(delay);
+                
+                return {
+                    type: 'p',
+                    props: {
+                        children: this.props.text
+                    }
+                };
+            }
+        }
+
+        // 콘텐츠 컴포넌트 (트리의 잎 노드)
+        class Content extends Component {
+            render() {
+                const delay = parseInt(delaySlider.value);
+                // 인위적 지연 추가
+                simulateHeavyWork(delay);
+                
+                return {
+                    type: 'div',
+                    props: {
+                        className: 'content',
+                        children: this.props.text
+                    }
+                };
+            }
+        }
+
+        // Stack Reconciler는 전체 컴포넌트 트리를 재귀적으로, 동기적으로 한 번에 처리합니다.
+// 이 방식은 작업이 길어질수록 메인 스레드를 오래 점유하여 UI가 멈추는 현상이 발생합니다.
+        class StackReconciler {
+            constructor(rootComponent) {
+                this.rootComponent = rootComponent;
+                this.renderCount = 0;
+                this.totalNodes = 0;
+            }
+
+            render() {
+                const stackButton = document.getElementById('runStackReconciler');
+                const stackOutput = document.getElementById('stackOutput');
+                const stackProgress = document.getElementById('stackProgress');
+                
+                // 렌더링 시작 전 UI 상태(버튼, 진행바 등) 초기화
+                stackButton.disabled = true;
+                stackOutput.innerHTML = '';
+                stackProgress.style.width = '0%';
+                this.renderCount = 0;
+                this.totalNodes = 0;
+                
+                // 전체 컴포넌트 트리의 노드 개수를 미리 계산하여 진행률 표시 등에 활용
+                this.calculateTotalNodes(this.rootComponent);
+                
+                log('시작: Stack Reconciler 렌더링', 'stack');
+                
+                const startTime = performance.now();
+                
+                // Stack 방식의 핵심: 재귀적으로 전체 트리를 동기적으로 한 번에 순회하며 렌더링합니다.
+// 이 과정에서 긴 작업이 발생하면 메인 스레드가 차단되어 UI가 멈춥니다.
+                const virtualDOM = this.renderComponent(this.rootComponent);
+                
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                log(`완료: Stack Reconciler 렌더링 (${duration}ms 소요)`, 'stack');
+                
+                // 렌더링 완료 후 UI(버튼, 진행바 등) 업데이트
+                stackButton.disabled = false;
+                stackProgress.style.width = '100%';
+                
+                return virtualDOM;
+            }
+
+            calculateTotalNodes(component) {
+                // 전체 컴포넌트 트리의 노드 개수를 미리 계산하여 진행률 표시 등에 활용
+                this.totalNodes++;
+                
+                if (component.render) {
+                    const element = component.render();
+                    
+                    if (element.props && element.props.children) {
+                        const childElements = Array.isArray(element.props.children) 
+                            ? element.props.children 
+                            : [element.props.children];
+                        
+                        for (const child of childElements) {
+                            if (typeof child === 'object' && child !== null && child.render) {
+                                this.calculateTotalNodes(child);
+                            }
+                        }
+                    }
+                }
+            }
+
+            renderComponent(component) {
+                this.renderCount++;
+                const progress = (this.renderCount / this.totalNodes * 100).toFixed(2);
+                
+                // 렌더링 완료 후 UI(버튼, 진행바 등) 업데이트 (진행상황)
+                document.getElementById('stackProgress').style.width = `${progress}%`;
+                
+                const componentType = component.type || 'Unknown';
+                log(`[Stack] 컴포넌트 렌더링: ${componentType} (${this.renderCount}/${this.totalNodes})`, 'stack');
+                
+                // 각 컴포넌트가 렌더링될 때마다 화면에 시각적으로 표시
+                const stackOutput = document.getElementById('stackOutput');
+                const renderItem = document.createElement('div');
+                renderItem.className = 'render-item render-stack';
+                renderItem.textContent = `${componentType} 렌더링`;
+                stackOutput.appendChild(renderItem);
+                
+                // 현재 컴포넌트의 render() 메서드를 호출하여 자식 요소를 얻음
+                const element = component.render();
+                
+                // 자식 요소가 컴포넌트라면 재귀적으로 renderComponent를 호출 (동기 처리)
+                const children = [];
+                
+                if (element.props && element.props.children) {
+                    const childElements = Array.isArray(element.props.children) 
+                        ? element.props.children 
+                        : [element.props.children];
+                    
+                    for (const child of childElements) {
+                        if (typeof child === 'object' && child !== null && child.render) {
+                            // 자식이 컴포넌트인 경우, 재귀적으로 동기 렌더링 (Stack 방식의 핵심)
+                            children.push(this.renderComponent(child));
+                        } else {
+                            // 텍스트 등 기본 요소는 그대로 자식 배열에 추가
+                            children.push(child);
+                        }
+                    }
+                }
+                
+                // 현재 컴포넌트의 가상 DOM 노드를 반환
+                return {
+                    type: element.type,
+                    props: { ...element.props, children },
+                };
+            }
+        }
+
+        // Fiber Reconciler는 렌더링 작업을 작은 단위(Unit of Work)로 쪼개어 처리합니다.
+// 각 작업은 브라우저의 유휴 시간(requestIdleCallback)에 조금씩 실행되며,
+// 작업 중간에도 브라우저가 사용자 이벤트(버튼 클릭 등)를 처리할 수 있도록 메인 스레드를 양보합니다.
+        class FiberReconciler {
+            constructor(rootComponent) {
+                this.rootComponent = rootComponent;
+                this.nextUnitOfWork = null;
+                this.currentRoot = null;
+                this.pendingCommit = null;
+                this.renderCount = 0;
+                this.totalNodes = 0;
+                this.startTime = 0;
+            }
+
+            render() {
+                const fiberButton = document.getElementById('runFiberReconciler');
+                const fiberOutput = document.getElementById('fiberOutput');
+                const fiberProgress = document.getElementById('fiberProgress');
+                
+                // 렌더링 시작 전 UI 상태(버튼, 진행바 등) 초기화
+                fiberButton.disabled = true;
+                fiberOutput.innerHTML = '';
+                fiberProgress.style.width = '0%';
+                this.renderCount = 0;
+                this.totalNodes = 0;
+                
+                // 전체 컴포넌트 트리의 노드 개수를 미리 계산하여 진행률 표시 등에 활용
+                this.calculateTotalNodes(this.rootComponent);
+                
+                log('시작: Fiber Reconciler 렌더링', 'fiber');
+                this.startTime = performance.now();
+                
+                // 렌더링할 첫 Fiber 작업 단위(nextUnitOfWork) 생성
+                this.nextUnitOfWork = {
+                    type: this.rootComponent.type,
+                    component: this.rootComponent,
+                    dom: null,
+                    props: this.rootComponent.props,
+                    alternate: this.currentRoot,
+                    parent: null,
+                    child: null,
+                    sibling: null,
+                    effectTag: 'PLACEMENT'
+                };
+                
+                // Fiber의 핵심: requestIdleCallback을 통해 브라우저 idle 시간에 performWork를 실행합니다.
+// 이로 인해 렌더링 작업이 여러 번에 나눠 비동기적으로 처리됩니다.
+                this.scheduleWork();
+            }
+
+            calculateTotalNodes(component) {
+                // 전체 컴포넌트 트리의 노드 개수를 미리 계산하여 진행률 표시 등에 활용
+                this.totalNodes++;
+                
+                if (component.render) {
+                    const element = component.render();
+                    
+                    if (element.props && element.props.children) {
+                        const childElements = Array.isArray(element.props.children) 
+                            ? element.props.children 
+                            : [element.props.children];
+                        
+                        for (const child of childElements) {
+                            if (typeof child === 'object' && child !== null && child.render) {
+                                this.calculateTotalNodes(child);
+                            }
+                        }
+                    }
+                }
+            }
+
+            scheduleWork() {
+                // 브라우저의 유휴 시간에 작업 수행
+                requestIdleCallback(this.performWork.bind(this));
+            }
+
+            performWork(deadline) {
+                // performWork는 브라우저가 허락한 시간(deadline) 동안만 작업을 수행합니다.
+// 시간이 부족해지면(5ms 미만) 즉시 중단하고, 다음 idle에 이어서 계속 작업합니다.
+// 이 구조 때문에 렌더링 중에도 UI 이벤트(버튼 클릭 등)가 처리될 수 있습니다.
+                let shouldYield = false;
+                
+                while (this.nextUnitOfWork && !shouldYield) {
+                    // 현재 작업 단위 처리
+                    this.nextUnitOfWork = this.performUnitOfWork(this.nextUnitOfWork);
+                    
+                    // 남은 시간이 5ms 미만이면 작업 중단하고 나중에 재개
+                    shouldYield = deadline.timeRemaining() < 5;
+                }
+                
+                // 모든 Fiber 작업이 끝나면 커밋 단계로 넘어가고, UI를 최종적으로 업데이트합니다.
+                if (!this.nextUnitOfWork && this.pendingCommit) {
+                    this.commitWork(this.pendingCommit);
+                    this.pendingCommit = null;
+                    
+                    const endTime = performance.now();
+                    const duration = (endTime - this.startTime).toFixed(2);
+                    log(`완료: Fiber Reconciler 렌더링 (${duration}ms 소요)`, 'fiber');
+                    
+                    // 렌더링 완료 후 UI(버튼, 진행바 등) 업데이트
+                    document.getElementById('runFiberReconciler').disabled = false;
+                    document.getElementById('fiberProgress').style.width = '100%';
+                }
+                
+                // 아직 남은 작업이 있다면 다음 브라우저 idle에 performWork를 재호출하여 이어서 처리합니다.
+// 이 반복 구조가 Fiber의 비동기적 렌더링의 핵심입니다.
+                if (this.nextUnitOfWork || this.pendingCommit) {
+                    this.scheduleWork();
+                }
+            }
+
+            performUnitOfWork(fiber) {
+                this.renderCount++;
+                const progress = (this.renderCount / this.totalNodes * 100).toFixed(2);
+                
+                // 렌더링 완료 후 UI(버튼, 진행바 등) 업데이트 (진행상황)
+                document.getElementById('fiberProgress').style.width = `${progress}%`;
+                
+                const componentType = fiber.component.type || 'Unknown';
+                log(`[Fiber] 작업 단위 처리: ${componentType} (${this.renderCount}/${this.totalNodes})`, 'fiber');
+                
+                // 각 컴포넌트가 렌더링될 때마다 화면에 시각적으로 표시
+                const fiberOutput = document.getElementById('fiberOutput');
+                const renderItem = document.createElement('div');
+                renderItem.className = 'render-item render-fiber';
+                renderItem.textContent = `${componentType} 렌더링`;
+                fiberOutput.appendChild(renderItem);
+                
+                // 실제 DOM 노드가 필요하면 이 시점에 생성(여기선 단순화)
+                if (!fiber.dom) {
+                    fiber.dom = this.createDomNode(fiber);
+                }
+                
+                // 현재 컴포넌트의 자식 요소들을 Fiber 노드로 변환하여 연결
+                const element = fiber.component.render();
+                const children = element.props && element.props.children 
+                    ? (Array.isArray(element.props.children) 
+                        ? element.props.children 
+                        : [element.props.children]) 
+                    : [];
+                
+                this.reconcileChildren(fiber, children.filter(child => child != null));
+                
+                // 다음에 처리할 Fiber 작업 단위를 찾음 (자식 → 형제 → 부모의 형제 순)
+                // 자식 Fiber가 있으면 그 노드를 다음 작업 단위로
+                if (fiber.child) {
+                    return fiber.child;
+                }
+                
+                // 형제 Fiber가 있으면 그 노드를 다음 작업 단위로
+                let nextFiber = fiber;
+                while (nextFiber) {
+                    if (nextFiber.sibling) {
+                        return nextFiber.sibling;
+                    }
+                    // 부모로 올라가서, 부모의 형제가 있으면 그 노드를 다음 작업 단위로
+                    nextFiber = nextFiber.parent;
+                }
+                
+                // 더 이상 처리할 작업이 없으면, 커밋 단계로 넘어갈 준비
+                this.pendingCommit = fiber;
+                return null;
+            }
+
+            reconcileChildren(fiber, children) {
+                // 자식 요소들을 순회하며 각각 Fiber 노드로 변환하고,
+// 첫 번째 자식은 fiber.child, 나머지는 sibling으로 연결
+                let prevSibling = null;
+                
+                children.forEach((child, index) => {
+                    if (typeof child !== 'object' || child === null || !child.render) {
+                        return; // 컴포넌트가 아닌 자식(텍스트 등)은 Fiber로 만들지 않고 건너뜀
+                    }
+                    
+                    const newFiber = {
+                        type: child.type,
+                        component: child,
+                        dom: null,
+                        props: child.props,
+                        parent: fiber,
+                        alternate: null,
+                        effectTag: 'PLACEMENT',
+                        child: null,
+                        sibling: null
+                    };
+                    
+                    // 첫 번째 자식은 fiber.child에,
+// 두 번째 이후는 이전 Fiber의 sibling에 연결
+                    if (!prevSibling) {
+                        fiber.child = newFiber;
+                    } else {
+                        prevSibling.sibling = newFiber;
+                    }
+                    
+                    prevSibling = newFiber;
+                });
+            }
+
+            createDomNode(fiber) {
+                // 실제 DOM 노드를 생성하는 부분 (여기서는 단순화)
+                return { 
+                    type: fiber.type,
+                    props: fiber.props 
+                };
+            }
+
+            commitWork(fiber) {
+                // 모든 변경사항을 실제 DOM에 반영하는 단계 (여기선 로그로 대체)
+                log('[Fiber] DOM에 변경사항 커밋', 'fiber');
+            }
+        }
+
+        // 실행 버튼에 Stack/Fiber Reconciler 실행 함수 등록
+        document.getElementById('runStackReconciler').addEventListener('click', function() {
+            // Stack Reconciler를 실행하여 전체 트리를 동기적으로 렌더링
+            const app = new App();
+            const stackReconciler = new StackReconciler(app);
+            stackReconciler.render();
+        });
+
+        document.getElementById('runFiberReconciler').addEventListener('click', function() {
+            // Fiber Reconciler를 실행하여 트리를 비동기적으로 렌더링
+            const app = new App();
+            const fiberReconciler = new FiberReconciler(app);
+            fiberReconciler.render();
+        });
+
+        // 안내 메시지 출력
+        log('준비 완료: 실행 버튼을 클릭하여 각 아키텍처를 테스트해보세요.');
+        log('깊이와 지연 시간을 조절하여 차이점을 더 명확하게 볼 수 있습니다.');
+    </script>
+</body>
+</html>
