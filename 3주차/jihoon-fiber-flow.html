@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Fiber 작동 순서 시각화</title>
+    <style>
+        :root {
+            --primary-color: #61dafb;
+            --secondary-color: #282c34;
+            --highlight-color: #ff6b6b;
+            --active-color: #20c997;
+            --complete-color: #82c91e;
+            --text-color: #333;
+            --bg-color: #f8f9fa;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            outline: none;
+        }
+        
+        button:hover {
+            background-color: #4fa8d1;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .visualization {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .tree-container {
+            flex: 1;
+            overflow: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 500px;
+            background-color: white;
+        }
+        
+        .details-container {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-panel {
+            margin-bottom: 20px;
+        }
+        
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            height: 200px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .log-entry.render {
+            background-color: rgba(97, 218, 251, 0.2);
+        }
+        
+        .log-entry.commit {
+            background-color: rgba(130, 201, 30, 0.2);
+        }
+        
+        .node {
+            cursor: pointer;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .node-content {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .node-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .node-props {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .node.active {
+            border-color: var(--active-color);
+            background-color: rgba(32, 201, 151, 0.1);
+        }
+        
+        .node.completed {
+            border-color: var(--complete-color);
+            background-color: rgba(130, 201, 30, 0.1);
+        }
+        
+        .node-children {
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .node-children::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #ddd;
+        }
+        
+        .node-type {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 0.8rem;
+            padding: 2px 5px;
+            border-radius: 3px;
+            color: white;
+        }
+        
+        .node-type.function {
+            background-color: #339af0;
+        }
+        
+        .node-type.class {
+            background-color: #f03e3e;
+        }
+        
+        .node-type.host {
+            background-color: #20c997;
+        }
+        
+        .phase-indicator {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 5px;
+            overflow: hidden;
+            height: 50px;
+        }
+        
+        .phase {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e9ecef;
+            transition: background-color 0.3s;
+            color: #666;
+            font-weight: bold;
+        }
+        
+        .phase.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .phase.completed {
+            background-color: var(--complete-color);
+            color: white;
+        }
+        
+        .current-step {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            color: var(--secondary-color);
+        }
+        
+        .explanation {
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            margin-bottom: 20px;
+        }
+        
+        .node-stack {
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .stack-item {
+            padding: 5px;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            background-color: #f1f3f5;
+        }
+        
+        .stack-item.current {
+            background-color: rgba(97, 218, 251, 0.2);
+            font-weight: bold;
+        }
+        
+        .connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .connection {
+            stroke: #ddd;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .connection.active {
+            stroke: var(--active-color);
+        }
+        
+        .help-button {
+            background-color: var(--secondary-color);
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 20px;
+        }
+        
+        .speed-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .speed-slider {
+            width: 100px;
+        }
+        
+        @media (max-width: 768px) {
+            .visualization {
+                flex-direction: column;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>React Fiber 작동 순서 시각화</h1>
+            <div class="subtitle">Fiber 아키텍처의 렌더링 과정을 단계별로 시각화</div>
+        </header>
+        
+        <div class="controls">
+            <button id="reset-btn">초기화</button>
+            <button id="start-btn">시작</button>
+            <button id="step-btn">한 단계씩</button>
+            <button id="pause-btn" disabled>일시정지</button>
+            <div class="speed-control">
+                <span class="speed-label">속도:</span>
+                <input type="range" id="speed-slider" class="speed-slider" min="1" max="5" value="3">
+            </div>
+        </div>
+        
+        <div class="phase-indicator">
+            <div class="phase" data-phase="render-begin">렌더 단계 시작</div>
+            <div class="phase" data-phase="render-process">렌더 단계 처리</div>
+            <div class="phase" data-phase="render-complete">렌더 단계 완료</div>
+            <div class="phase" data-phase="commit-before">커밋 전 단계</div>
+            <div class="phase" data-phase="commit-mutation">DOM 변경</div>
+            <div class="phase" data-phase="commit-layout">레이아웃 단계</div>
+        </div>
+        
+        <div class="visualization">
+            <div class="tree-container" id="component-tree">
+                <!-- Component Tree will be rendered here -->
+            </div>
+            
+            <div class="details-container">
+                <div class="current-step" id="current-step">대기 중...</div>
+                <div class="explanation" id="explanation">
+                    시작 버튼을 클릭하여 React Fiber 작동 과정을 시각화해보세요.
+                </div>
+                <div class="info-panel">
+                    <h3>현재 작업 스택</h3>
+                    <div class="node-stack" id="node-stack">
+                        <div class="stack-item">아직 작업이 시작되지 않았습니다.</div>
+                    </div>
+                </div>
+                <h3>작업 로그</h3>
+                <div class="log-container" id="log-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="help-button" id="help-button">?</div>
+    
+    <div class="modal" id="help-modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-modal">&times;</span>
+            <h2>React Fiber 작동 과정 설명</h2>
+            <p>이 시각화 도구는 React Fiber 아키텍처의 작동 원리를 보여줍니다.</p>
+            
+            <h3>주요 단계:</h3>
+            <ol>
+                <li><strong>렌더 단계 시작:</strong> 루트에서 Fiber 작업이 시작됩니다.</li>
+                <li><strong>렌더 단계 처리:</strong> beginWork와 completeWork를 통해 컴포넌트 트리를 순회합니다.</li>
+                <li><strong>렌더 단계 완료:</strong> 작업 중인 Fiber 트리 구성이 완료됩니다.</li>
+                <li><strong>커밋 전 단계:</strong> DOM 변경 전 작업을 수행합니다.</li>
+                <li><strong>DOM 변경 단계:</strong> 실제 DOM 조작이 발생합니다.</li>
+                <li><strong>레이아웃 단계:</strong> DOM 업데이트 후 작업을 수행합니다.</li>
+            </ol>
+            
+            <h3>컴포넌트 타입:</h3>
+            <ul>
+                <li><span style="background-color: #339af0; color: white; padding: 2px 5px; border-radius: 3px;">함수형</span> - 함수형 컴포넌트</li>
+                <li><span style="background-color: #f03e3e; color: white; padding: 2px 5px; border-radius: 3px;">클래스</span> - 클래스 컴포넌트</li>
+                <li><span style="background-color: #20c997; color: white; padding: 2px 5px; border-radius: 3px;">호스트</span> - DOM 요소 (div, span 등)</li>
+            </ul>
+            
+            <h3>조작 방법:</h3>
+            <ul>
+                <li><strong>초기화:</strong> 상태를 처음으로 되돌립니다.</li>
+                <li><strong>시작:</strong> 전체 과정을 자동으로 실행합니다.</li>
+                <li><strong>한 단계씩:</strong> 하나의 작업 단위를 실행합니다.</li>
+                <li><strong>일시정지:</strong> 자동 실행을 일시정지합니다.</li>
+                <li><strong>속도:</strong> 자동 실행 속도를 조절합니다.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // 컴포넌트 트리 데이터
+        const componentData = {
+            id: 'root',
+            type: 'host',
+            element: 'div',
+            props: { id: 'app' },
+            children: [
+                {
+                    id: 'app',
+                    type: 'function',
+                    element: 'App',
+                    props: {},
+                    children: [
+                        {
+                            id: 'header',
+                            type: 'function',
+                            element: 'Header',
+                            props: { title: 'React Fiber 데모' },
+                            children: [
+                                {
+                                    id: 'header-div',
+                                    type: 'host',
+                                    element: 'div',
+                                    props: { className: 'header' },
+                                    children: [
+                                        {
+                                            id: 'title',
+                                            type: 'host',
+                                            element: 'h1',
+                                            props: {},
+                                            children: []
+                                        },
+                                        {
+                                            id: 'nav',
+                                            type: 'function',
+                                            element: 'Navigation',
+                                            props: {},
+                                            children: [
+                                                {
+                                                    id: 'nav-ul',
+                                                    type: 'host',
+                                                    element: 'ul',
+                                                    props: {},
+                                                    children: [
+                                                        {
+                                                            id: 'nav-li-1',
+                                                            type: 'host',
+                                                            element: 'li',
+                                                            props: {},
+                                                            children: []
+                                                        },
+                                                        {
+                                                            id: 'nav-li-2',
+                                                            type: 'host',
+                                                            element: 'li',
+                                                            props: {},
+                                                            children: []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: 'content',
+                            type: 'class',
+                            element: 'Content',
+                            props: { items: [1, 2, 3] },
+                            children: [
+                                {
+                                    id: 'content-div',
+                                    type: 'host',
+                                    element: 'div',
+                                    props: { className: 'content' },
+                                    children: [
+                                        {
+                                            id: 'item-list',
+                                            type: 'function',
+                                            element: 'ItemList',
+                                            props: { items: [1, 2, 3] },
+                                            children: [
+                                                {
+                                                    id: 'ul-items',
+                                                    type: 'host',
+                                                    element: 'ul',
+                                                    props: {},
+                                                    children: [
+                                                        {
+                                                            id: 'item-1',
+                                                            type: 'host',
+                                                            element: 'li',
+                                                            props: { key: '1' },
+                                                            children: []
+                                                        },
+                                                        {
+                                                            id: 'item-2',
+                                                            type: 'host',
+                                                            element: 'li',
+                                                            props: { key: '2' },
+                                                            children: []
+                                                        },
+                                                        {
+                                                            id: 'item-3',
+                                                            type: 'host',
+                                                            element: 'li',
+                                                            props: { key: '3' },
+                                                            children: []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: 'footer',
+                            type: 'function',
+                            element: 'Footer',
+                            props: {},
+                            children: [
+                                {
+                                    id: 'footer-div',
+                                    type: 'host',
+                                    element: 'div',
+                                    props: { className: 'footer' },
+                                    children: [
+                                        {
+                                            id: 'copyright',
+                                            type: 'host',
+                                            element: 'p',
+                                            props: {},
+                                            children: []
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // 상태를 관리할 애플리케이션 객체
+        const app = {
+            isRunning: false,
+            isPaused: false,
+            currentPhase: null,
+            currentNodeId: null,
+            nodeStack: [],
+            workQueue: [],
+            completedNodes: new Set(),
+            activeNodes: new Set(),
+            animationSpeed: 3,
+            renderPhaseSteps: [
+                'render-begin',
+                'render-process', 
+                'render-complete'
+            ],
+            commitPhaseSteps: [
+                'commit-before',
+                'commit-mutation',
+                'commit-layout'
+            ],
+            stepDescriptions: {
+                'beginWork': '현재 Fiber 노드에서 작업을 시작합니다. 컴포넌트 유형에 따라 렌더링 로직을 실행하고 자식 요소를 생성합니다.',
+                'processChild': '자식 컴포넌트로 이동하여 beginWork를 수행합니다.',
+                'completeWork': '모든 자식 노드를 처리한 후 현재 노드의 작업을 완료합니다. 호스트 컴포넌트의 경우 DOM 업데이트를 준비합니다.',
+                'processSibling': '다음 형제 노드로 이동하여 작업을 계속합니다.',
+                'returnToParent': '모든 자식과 형제를 처리한 후 부모 노드로 돌아갑니다.',
+                'commitBeforeMutation': 'DOM 변경 전에 스냅샷 획득과 같은 작업을 수행합니다.',
+                'commitMutation': '실제 DOM 변경이 수행됩니다. 요소 추가, 업데이트, 삭제 등의 작업이 이루어집니다.',
+                'commitLayout': 'DOM 변경 후 componentDidMount, componentDidUpdate와 같은 생명주기 메서드를 호출합니다.',
+                'finishCommit': '작업 중인 Fiber 트리를 현재 트리로 교체하고 작업을 마무리합니다.'
+            },
+            
+            // 초기화 함수
+            init() {
+                this.resetState();
+                this.renderComponentTree();
+                this.setupEventListeners();
+            },
+            
+            // 상태 초기화
+            resetState() {
+                this.isRunning = false;
+                this.isPaused = false;
+                this.currentPhase = null;
+                this.currentNodeId = null;
+                this.nodeStack = [];
+                this.workQueue = [];
+                this.completedNodes = new Set();
+                this.activeNodes = new Set();
+                this.resetUI();
+                
+                // 작업 큐 생성
+                this.generateWorkQueue();
+            },
+            
+            // UI 초기화
+            resetUI() {
+                document.querySelectorAll('.node').forEach(node => {
+                    node.classList.remove('active', 'completed');
+                });
+                
+                document.querySelectorAll('.phase').forEach(phase => {
+                    phase.classList.remove('active', 'completed');
+                });
+                
+                document.getElementById('current-step').textContent = '대기 중...';
+                document.getElementById('explanation').textContent = '시작 버튼을 클릭하여 React Fiber 작동 과정을 시각화해보세요.';
+                document.getElementById('node-stack').innerHTML = '<div class="stack-item">아직 작업이 시작되지 않았습니다.</div>';
+                document.getElementById('log-container').innerHTML = '';
+                
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('step-btn').disabled = false;
+                document.getElementById('pause-btn').disabled = true;
+            },
+            
+            // 컴포넌트 트리 렌더링
+            renderComponentTree() {
+                const treeContainer = document.getElementById('component-tree');
+                treeContainer.innerHTML = this.renderNode(componentData);
+            },
+            
+            // 단일 노드 렌더링
+            renderNode(node) {
+                const typeClass = node.type === 'function' ? 'function' : (node.type === 'class' ? 'class' : 'host');
+                const typeLabel = node.type === 'function' ? '함수형' : (node.type === 'class' ? '클래스' : '호스트');
+                
+                let propsText = '';
+                if (Object.keys(node.props).length > 0) {
+                    propsText = Object.entries(node.props)
+                        .map(([key, value]) => {
+                            if (Array.isArray(value)) {
+                                return `${key}: [${value.join(', ')}]`;
+                            } else if (typeof value === 'object' && value !== null) {
+                                return `${key}: {...}`;
+                            } else {
+                                return `${key}: ${value}`;
+                            }
+                        })
+                        .join(', ');
+                }
+                
+                let childrenHtml = '';
+                if (node.children && node.children.length > 0) {
+                    childrenHtml = `<div class="node-children">
+                        ${node.children.map(child => this.renderNode(child)).join('')}
+                    </div>`;
+                }
+                
+                return `
+                    <div class="node" id="node-${node.id}" data-id="${node.id}">
+                        <div class="node-content">
+                            <div class="node-label">${node.element}</div>
+                            ${propsText ? `<div class="node-props">${propsText}</div>` : ''}
+                            <div class="node-type ${typeClass}">${typeLabel}</div>
+                        </div>
+                        ${childrenHtml}
+                    </div>
+                `;
+            },
+            
+            // 이벤트 리스너 설정
+            setupEventListeners() {
+                document.getElementById('reset-btn').addEventListener('click', () => this.resetState());
+                document.getElementById('start-btn').addEventListener('click', () => this.startSimulation());
+                document.getElementById('step-btn').addEventListener('click', () => this.stepSimulation());
+                document.getElementById('pause-btn').addEventListener('click', () => this.pauseSimulation());
+                document.getElementById('help-button').addEventListener('click', () => this.showHelpModal());
+                document.getElementById('close-modal').addEventListener('click', () => this.hideHelpModal());
+                document.getElementById('speed-slider').addEventListener('input', (e) => {
+                    this.animationSpeed = parseInt(e.target.value);
+                });
+            },
+            
+            // 도움말 모달 표시
+            showHelpModal() {
+                document.getElementById('help-modal').style.display = 'flex';
+            },
+            
+            // 도움말 모달 숨기기
+            hideHelpModal() {
+                document.getElementById('help-modal').style.display = 'none';
+            },
+            
+            // 시뮬레이션 시작
+            startSimulation() {
+                if (this.workQueue.length === 0) {
+                    this.generateWorkQueue();
+                }
+                
+                this.isRunning = true;
+                this.isPaused = false;
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('pause-btn').disabled = false;
+                
+                this.runSimulation();
+            },
+            
+            // 시뮬레이션 일시정지
+            pauseSimulation() {
+                this.isPaused = true;
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('pause-btn').disabled = true;
+            },
+            
+            // 한 단계씩 시뮬레이션 실행
+            stepSimulation() {
+                if (this.workQueue.length === 0) {
+                    this.generateWorkQueue();
+                }
+                
+                this.processNextStep();
+            },
+            
+            // 시뮬레이션 실행
+            runSimulation() {
+                if (!this.isRunning || this.isPaused) return;
+                
+                if (this.workQueue.length > 0) {
+                    this.processNextStep();
+                    
+                    // 속도에 따른 딜레이 설정
+                    const delay = this.getDelayFromSpeed();
+                    setTimeout(() => this.runSimulation(), delay);
+                } else {
+                    this.isRunning = false;
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('pause-btn').disabled = true;
+                    document.getElementById('current-step').textContent = '시뮬레이션 완료';
+                    document.getElementById('explanation').textContent = '시뮬레이션이 완료되었습니다. 초기화 버튼을 클릭하여 다시 시작할 수 있습니다.';
+                }
+            },
+            
+            // 속도에 따른 딜레이 계산
+            getDelayFromSpeed() {
+                const speeds = [2000, 1500, 1000, 500, 200]; // 1(느림)~5(빠름)
+                return speeds[this.animationSpeed - 1];
+            },
+            
+            // 다음 단계 처리
+            processNextStep() {
+                if (this.workQueue.length === 0) {
+                    return;
+                }
+                
+                const step = this.workQueue.shift();
+                this.executeStep(step);
+            },
+            
+            // 단계 실행
+            executeStep(step) {
+                const { phase, action, nodeId } = step;
+                
+                // 현재 단계 업데이트
+                this.currentPhase = phase;
+                this.updatePhaseIndicator(phase);
+                
+                // 노드 업데이트
+                if (nodeId) {
+                    this.currentNodeId = nodeId;
+                    this.updateNodeStatus(nodeId, action);
+                }
+                
+                // 스택 업데이트
+                this.updateStack(action, nodeId);
+                
+                // 현재 단계 설명 업데이트
+                this.updateStepDescription(action, nodeId);
+                
+                // 로그 업데이트
+                this.addLogEntry(phase, action, nodeId);
+            },
+            
+            // 단계별 설명 업데이트
+            updateStepDescription(action, nodeId) {
+                const currentStep = document.getElementById('current-step');
+                const explanation = document.getElementById('explanation');
+                
+                const nodeName = this.getNodeName(nodeId);
+                let stepText = '';
+                let explanationText = '';
+                
+                switch (action) {
+                    case 'beginWork':
+                        stepText = `beginWork: ${nodeName}`;
+                        explanationText = `${this.stepDescriptions[action]} 현재 처리 중인 컴포넌트: ${nodeName}`;
+                        break;
+                    case 'processChild':
+                        stepText = `자식 처리: ${nodeName}`;
+                        explanationText = `${this.stepDescriptions[action]} 자식 컴포넌트: ${nodeName}`;
+                        break;
+                    case 'completeWork':
+                        stepText = `completeWork: ${nodeName}`;
+                        explanationText = `${this.stepDescriptions[action]} 완료 중인 컴포넌트: ${nodeName}`;
+                        break;
+                    case 'processSibling':
+                        stepText = `형제 처리: ${nodeName}`;
+                        explanationText = `${this.stepDescriptions[action]} 다음 형제 컴포넌트: ${nodeName}`;
+                        break;
+                    case 'returnToParent':
+                        stepText = `부모로 복귀: ${nodeName}`;
+                        explanationText = `${this.stepDescriptions[action]} 부모 컴포넌트: ${nodeName}`;
+                        break;
+                    case 'commitBeforeMutation':
+                        stepText = `커밋 전 단계`;
+                        explanationText = this.stepDescriptions[action];
+                        break;
+                    case 'commitMutation':
+                        stepText = `DOM 변경 단계: ${nodeName || ''}`;
+                        explanationText = `${this.stepDescriptions[action]} ${nodeName ? `현재 노드: ${nodeName}` : ''}`;
+                        break;
+                    case 'commitLayout':
+                        stepText = `레이아웃 단계: ${nodeName || ''}`;
+                        explanationText = `${this.stepDescriptions[action]} ${nodeName ? `현재 노드: ${nodeName}` : ''}`;
+                        break;
+                    case 'finishCommit':
+                        stepText = `커밋 완료`;
+                        explanationText = this.stepDescriptions[action];
+                        break;
+                    default:
+                        stepText = action;
+                        explanationText = '다음 단계를 진행합니다.';
+                }
+                
+                currentStep.textContent = stepText;
+                explanation.textContent = explanationText;
+            },
+            
+            // 노드 이름 가져오기
+            getNodeName(nodeId) {
+                if (!nodeId) return '';
+                
+                const findNode = (node, id) => {
+                    if (node.id === id) {
+                        return node;
+                    }
+                    
+                    if (node.children) {
+                        for (const child of node.children) {
+                            const found = findNode(child, id);
+                            if (found) return found;
+                        }
+                    }
+                    
+                    return null;
+                };
+                
+                const node = findNode(componentData, nodeId);
+                return node ? `${node.element} (${node.type})` : nodeId;
+            },
+            
+            // 단계 표시기 업데이트
+            updatePhaseIndicator(phase) {
+                const phases = document.querySelectorAll('.phase');
+                
+                phases.forEach(phaseEl => {
+                    const phaseData = phaseEl.getAttribute('data-phase');
+                    
+                    // 현재 단계 표시
+                    if (phaseData === phase) {
+                        phaseEl.classList.add('active');
+                        phaseEl.classList.remove('completed');
+                    }
+                    // 완료된 단계 표시
+                    else if (
+                        (this.renderPhaseSteps.indexOf(phaseData) < this.renderPhaseSteps.indexOf(phase) && this.renderPhaseSteps.includes(phase)) ||
+                        (this.renderPhaseSteps.includes(phaseData) && this.commitPhaseSteps.includes(phase))
+                    ) {
+                        phaseEl.classList.remove('active');
+                        phaseEl.classList.add('completed');
+                    }
+                    // 아직 시작되지 않은 단계
+                    else {
+                        phaseEl.classList.remove('active', 'completed');
+                    }
+                });
+            },
+            
+            // 노드 상태 업데이트
+            updateNodeStatus(nodeId, action) {
+                if (!nodeId) return;
+                
+                const nodeElement = document.getElementById(`node-${nodeId}`);
+                if (!nodeElement) return;
+                
+                // 활성 노드 관리
+                if (action === 'beginWork' || action === 'processChild') {
+                    this.activeNodes.add(nodeId);
+                } else if (action === 'completeWork') {
+                    this.activeNodes.delete(nodeId);
+                    this.completedNodes.add(nodeId);
+                }
+                
+                // 모든 노드 상태 업데이트
+                document.querySelectorAll('.node').forEach(node => {
+                    const id = node.getAttribute('data-id');
+                    
+                    if (this.activeNodes.has(id)) {
+                        node.classList.add('active');
+                        node.classList.remove('completed');
+                    } else if (this.completedNodes.has(id)) {
+                        node.classList.remove('active');
+                        node.classList.add('completed');
+                    } else {
+                        node.classList.remove('active', 'completed');
+                    }
+                });
+            },
+            
+            // 스택 업데이트
+            updateStack(action, nodeId) {
+                if (!nodeId) return;
+                
+                const stackContainer = document.getElementById('node-stack');
+                
+                if (action === 'beginWork' || action === 'processChild') {
+                    // 스택에 추가
+                    this.nodeStack.push(nodeId);
+                } else if (action === 'completeWork' || action === 'returnToParent') {
+                    // 스택에서 제거
+                    if (this.nodeStack.length > 0 && this.nodeStack[this.nodeStack.length - 1] === nodeId) {
+                        this.nodeStack.pop();
+                    }
+                }
+                
+                // 스택 요소 렌더링
+                if (this.nodeStack.length > 0) {
+                    stackContainer.innerHTML = this.nodeStack.map((id, index) => {
+                        const isLast = index === this.nodeStack.length - 1;
+                        const className = isLast ? 'stack-item current' : 'stack-item';
+                        return `<div class="${className}">${this.getNodeName(id)}</div>`;
+                    }).join('');
+                } else {
+                    stackContainer.innerHTML = '<div class="stack-item">스택이 비어있습니다.</div>';
+                }
+            },
+            
+            // 로그 항목 추가
+            addLogEntry(phase, action, nodeId) {
+                const logContainer = document.getElementById('log-container');
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${this.renderPhaseSteps.includes(phase) ? 'render' : 'commit'}`;
+                
+                const nodeText = nodeId ? ` - ${this.getNodeName(nodeId)}` : '';
+                logEntry.textContent = `[${phase}] ${action}${nodeText}`;
+                
+                logContainer.appendChild(logEntry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            },
+            
+            // 작업 큐 생성
+            generateWorkQueue() {
+                this.workQueue = [];
+                
+                // 1. 렌더 단계 시작
+                this.workQueue.push({ phase: 'render-begin', action: 'beginWork', nodeId: 'root' });
+                
+                // 깊이 우선 탐색으로 렌더 단계 작업 생성
+                this.generateRenderPhaseQueue('root');
+                
+                // 렌더 단계 완료
+                this.workQueue.push({ phase: 'render-complete', action: 'finishRender', nodeId: null });
+                
+                // 2. 커밋 단계 - 커밋 전 단계
+                this.workQueue.push({ phase: 'commit-before', action: 'commitBeforeMutation', nodeId: null });
+                
+                // 3. 커밋 단계 - DOM 변경
+                this.workQueue.push({ phase: 'commit-mutation', action: 'commitMutation', nodeId: null });
+                this.addCommitPhaseNodes('commit-mutation', 'commitMutation');
+                
+                // 4. 커밋 단계 - 레이아웃 단계
+                this.workQueue.push({ phase: 'commit-layout', action: 'commitLayout', nodeId: null });
+                this.addCommitPhaseNodes('commit-layout', 'commitLayout');
+                
+                // 5. 커밋 완료
+                this.workQueue.push({ phase: 'commit-layout', action: 'finishCommit', nodeId: null });
+            },
+            
+            // 렌더 단계 큐 생성
+            generateRenderPhaseQueue(nodeId) {
+                const node = this.findNodeById(componentData, nodeId);
+                if (!node) return;
+                
+                // 자식 노드가 있으면 처리
+                if (node.children && node.children.length > 0) {
+                    // 첫 번째 자식으로 이동
+                    const firstChild = node.children[0];
+                    this.workQueue.push({ 
+                        phase: 'render-process',
+                        action: 'processChild',
+                        nodeId: firstChild.id
+                    });
+                    
+                    // 자식 노드 beginWork
+                    this.workQueue.push({
+                        phase: 'render-process',
+                        action: 'beginWork',
+                        nodeId: firstChild.id
+                    });
+                    
+                    // 재귀적으로 자식 트리 처리
+                    this.generateRenderPhaseQueue(firstChild.id);
+                }
+                
+                // 현재 노드 completeWork
+                this.workQueue.push({
+                    phase: 'render-process',
+                    action: 'completeWork',
+                    nodeId: nodeId
+                });
+                
+                // 형제 노드가 있으면 처리
+                const siblings = this.findSiblings(nodeId);
+                if (siblings.length > 0) {
+                    const nextSibling = siblings[0];
+                    this.workQueue.push({
+                        phase: 'render-process',
+                        action: 'processSibling',
+                        nodeId: nextSibling.id
+                    });
+                    
+                    // 형제 노드 beginWork
+                    this.workQueue.push({
+                        phase: 'render-process',
+                        action: 'beginWork',
+                        nodeId: nextSibling.id
+                    });
+                    
+                    // 재귀적으로 형제 트리 처리
+                    this.generateRenderPhaseQueue(nextSibling.id);
+                }
+                // 형제가 없고 부모가 있으면 부모로 돌아감
+                else {
+                    const parent = this.findParent(nodeId);
+                    if (parent && parent.id !== 'root') {
+                        this.workQueue.push({
+                            phase: 'render-process',
+                            action: 'returnToParent',
+                            nodeId: parent.id
+                        });
+                    }
+                }
+            },
+            
+            // 커밋 단계 노드 추가
+            addCommitPhaseNodes(phase, action) {
+                // 간략화를 위해 일부 DOM 요소만 선택적으로 처리
+                const hostNodes = this.getAllHostNodes().slice(0, 5);
+                for (const node of hostNodes) {
+                    this.workQueue.push({
+                        phase,
+                        action,
+                        nodeId: node.id
+                    });
+                }
+            },
+            
+            // 모든 호스트 노드 가져오기
+            getAllHostNodes() {
+                const hostNodes = [];
+                
+                const findHostNodes = (node) => {
+                    if (node.type === 'host') {
+                        hostNodes.push(node);
+                    }
+                    
+                    if (node.children) {
+                        for (const child of node.children) {
+                            findHostNodes(child);
+                        }
+                    }
+                };
+                
+                findHostNodes(componentData);
+                return hostNodes;
+            },
+            
+            // ID로 노드 찾기
+            findNodeById(root, id) {
+                if (root.id === id) {
+                    return root;
+                }
+                
+                if (root.children) {
+                    for (const child of root.children) {
+                        const found = this.findNodeById(child, id);
+                        if (found) return found;
+                    }
+                }
+                
+                return null;
+            },
+            
+            // 형제 노드 찾기
+            findSiblings(nodeId) {
+                const parent = this.findParent(nodeId);
+                if (!parent) return [];
+                
+                const index = parent.children.findIndex(child => child.id === nodeId);
+                if (index === -1 || index >= parent.children.length - 1) return [];
+                
+                return parent.children.slice(index + 1);
+            },
+            
+            // 부모 노드 찾기
+            findParent(nodeId) {
+                const find = (node) => {
+                    if (node.children) {
+                        for (const child of node.children) {
+                            if (child.id === nodeId) {
+                                return node;
+                            }
+                            
+                            const found = find(child);
+                            if (found) return found;
+                        }
+                    }
+                    
+                    return null;
+                };
+                
+                return find(componentData);
+            }
+        };
+        
+        // 애플리케이션 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
