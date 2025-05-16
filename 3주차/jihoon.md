@@ -2,7 +2,12 @@
 # React Fiber 아키텍처 정리
 
 
-React Fiber는 React v16에서 도입된 내부 알고리즘의 전면적인 리팩터링
+**React 16~현재(React 18, 19)**까지의 모든 버전은 Fiber를 기반으로 동작
+
+Fiber는 단순한 렌더링 알고리즘이 아니라, React의 실행 모델 그 자체다. 작업을 분할하고, 우선순위 기반으로 스케줄링하고, 상태를 관리하는 등 React의 “두뇌” 역할을 한다.
+
+React 18에서 도입된 Concurrent Mode 역시 Fiber 구조의 스케줄러 확장 위에서 구현되었다.
+
 
 이전 React의 **동기적 렌더링 방식**은 UI가 복잡해질수록 병목 현상이 발생하고, 렌더링 중 오류가 발생하면 전체 애플리케이션이 중단되는 등 여러 한계를 가짐
 
@@ -82,7 +87,11 @@ ReactDOM.createPortal(child, domNode);
 </>
 ```
 
-- 불필요한 `<div>` 래퍼 없이 여러 컴포넌트를 하나의 그룹처럼 렌더링
+React 컴포넌트는 하나의 루트 요소만 반환할 수 있었다. 그렇기에 불필요한 div 요소로 컴포넌트를 감싸서 DOM에 불필요한 노드를 추가하게 됨
+
+fiber 도입하고 fragment가 도입됨으로써 불필요한 div 요소를 사용하지 않음
+
+fragment는 fiber 노드로 표현되지만 실제 dom 노드로는 렌더링 되지 않음.
 
 ---
 
@@ -153,6 +162,23 @@ React는 diffing 최적화를 위해 다음과 같은 원칙을 따름
 이로 인해 `key` 속성은 리스트 렌더링에서 반드시 유일하게 지정되어야 한다.
 
 ---
+
+## 그래서 React 19 에서는?
+
+- React Compiler (React Forget): useMemo, useCallback 없이도 성능 최적화를 컴파일 타임에 자동화하는 기능.
+
+- Asset Loading, Actions, Form State Sync 등 서버와 클라이언트를 연결하는 "React Server Components"와의 통합 강화.
+
+- Transition, Suspense, useDeferredValue, useTransition 등의 체계적 활용 → 모두 Fiber의 우선순위 기반 스케줄링 모델 없이는 불가능
+
+즉, Fiber는 계속 사용되며, 새로운 기능들이 Fiber 위에서 ‘실행 방식’을 발전시키는 방향으로 설계되고 됨.
+
+단지 Virtual DOM 을 지양하고있따.
+
+이는 Virtual DOM 의 단순한 개념으로 많은 사람들이 오해를 하고 있다. 어떤 오해? Virtual DOM 은 렌더 결과 객체를 의미하고, fiber 은 렌더링 처리 단위(스케줄링 + 상태 관리+ 효과추적)라고.
+
+그래서 react 팀은  **"React Element → Fiber Node → Commit"** 을 강조하기 위해서 Virtual DOM 이라는 개념을 제거하고자했따.
+
 
 ## 📚 참고 자료
 
