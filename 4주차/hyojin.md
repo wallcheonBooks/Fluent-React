@@ -285,73 +285,6 @@ Render Props 패턴의 핵심은 컴포넌트에 함수를 props로 전달하고
 |**디버깅**|컴포넌트 구조 명확|래핑 구조로 추적 어려움|React DevTools에서 훅 검사|
 |**사용 시기**|동적 렌더링이 필요할 때|컴포넌트 변환이 필요할 때|함수형 컴포넌트에서 상태/로직 재사용 시|
 
-## 실제 사용 예: Render Props로 구현한 토글 기능
-
-jsx
-
-```jsx
-class Toggle extends React.Component {
-  state = { on: false };
-  
-  toggle = () => {
-    this.setState(prevState => ({ on: !prevState.on }));
-  };
-  
-  render() {
-    return this.props.children({
-      on: this.state.on,
-      toggle: this.toggle
-    });
-  }
-}
-
-// 사용 예시
-function App() {
-  return (
-    <Toggle>
-      {({ on, toggle }) => (
-        <div>
-          <button onClick={toggle}>
-            {on ? '켜짐' : '꺼짐'}
-          </button>
-          <div>{on ? '내용이 보입니다' : '내용이 숨겨집니다'}</div>
-        </div>
-      )}
-    </Toggle>
-  );
-}
-```
-
-## 같은 기능의 Hook 구현 비교
-
-jsx
-
-```jsx
-// 커스텀 훅으로 구현
-function useToggle(initialState = false) {
-  const [on, setOn] = useState(initialState);
-  
-  const toggle = useCallback(() => {
-    setOn(prevState => !prevState);
-  }, []);
-  
-  return [on, toggle];
-}
-
-// 사용 예시
-function App() {
-  const [on, toggle] = useToggle();
-  
-  return (
-    <div>
-      <button onClick={toggle}>
-        {on ? '켜짐' : '꺼짐'}
-      </button>
-      <div>{on ? '내용이 보입니다' : '내용이 숨겨집니다'}</div>
-    </div>
-  );
-}
-```
 
 Render Props 패턴은 React Hooks가 도입되기 전에 널리 사용되었으며, 특히 클래스 컴포넌트에서 코드 재사용을 위한 주요 패턴 중 하나였습니다. 현재는 Hooks가 더 간결한 대안을 제공하지만, 동적 렌더링이 필요한 특수한 경우에는 여전히 Render Props 패턴이 유용하게 사용됩니다.
 
@@ -359,21 +292,18 @@ Render Props 패턴은 React Hooks가 도입되기 전에 널리 사용되었으
 
 ## 5.5.4 제어 프롭
 
-제어 컴포넌트와 제어 프롭 패턴은 React에서 컴포넌트의 상태와 동작을 제어하는 중요한 패턴입니다.
+상태 관리에 대한 전략적 접근 방식. 제어 컴포넌트의 개념을 확장한 것.
 
 ## 제어 컴포넌트(Controlled Components)
 
-제어 컴포넌트는 React에서 폼 요소(input, textarea, select 등)의 상태를 React 컴포넌트의 state로 관리하는 패턴입니다.
-
-### 기본 개념
+제어 컴포넌트는 내부에 자체 상태를 유지하지 않는 컴포넌트. 이들의 현재값은 부모 컴포넌트에서 전달한 프롭에 의해 결정되며, 부모 컴포넌트가 단일 정보 출처의 역할을 함. 상태가 변경되어야할 때, 제어 컴포넌트는 보통 onChange 같은 콜백 함수를 통해 부모에게 알린다. 따라서 상태를 관리하고 제어 컴포넌트의 값을 업데이트 하는 책임은 모두 부모 컴포넌트에 있게 됨.
 
 1. **상태 관리**: 폼 요소의 값이 React 컴포넌트의 state에 의해 제어됨
-2. **단일 진실 공급원(Single Source of Truth)**: 컴포넌트 상태가 UI 상태의 유일한 출처
+2. **Single Source of Truth**: 컴포넌트 상태가 UI 상태의 유일한 출처
 3. **이벤트 핸들링**: 사용자 입력에 따라 state를 업데이트하는 핸들러 함수 사용
 
 ### 제어 컴포넌트 예시
 
-jsx
 
 ```jsx
 import React, { useState } from 'react';
@@ -412,15 +342,12 @@ function ControlledForm() {
 
 제어 프롭 패턴은 제어 컴포넌트 개념을 확장하여, 재사용 가능한 컴포넌트의 내부 상태와 동작을 외부(부모 컴포넌트)에서 제어할 수 있게 하는 패턴입니다.
 
-### 기본 개념
-
 1. **상태 위임**: 컴포넌트의 내부 상태를 부모 컴포넌트로 위임
 2. **동작 제어**: 컴포넌트의 동작을 외부에서 제어 가능하게 함
 3. **양방향 바인딩**: 값(value)과 변경 핸들러(onChange) props 쌍을 통한 상태 관리
 
 ### 제어 프롭 패턴 예시: 커스텀 토글 컴포넌트
 
-jsx
 
 ```jsx
 // Toggle.js - 제어 프롭 패턴을 사용한 재사용 가능한 컴포넌트
@@ -500,18 +427,12 @@ function App() {
 
 프롭 컬렉션은 React 컴포넌트 디자인 패턴으로, 자주 함께 사용되는 props 그룹을 미리 정의된 객체로 제공하여 개발자 경험을 향상시키고 코드의 재사용성을 높이는 기법입니다.
 
-## 기본 개념
-
-프롭 컬렉션 패턴의 핵심 개념은 다음과 같습니다:
-
 1. **관련 props 그룹화**: 함께 사용되는 props를 객체로 묶어 제공
 2. **편의성 향상**: 여러 props를 일일이 전달하는 대신 스프레드 연산자(...)로 간편하게 적용
 3. **일관성 유지**: 관련 컴포넌트에 일관된 props 세트 적용
 4. **접근성 향상**: 접근성 관련 속성을 기본 제공
 
 ## 기본 구현 예시
-
-jsx
 
 ```jsx
 function useToggle() {
@@ -660,7 +581,6 @@ function AccessibleDialog() {
 
 프롭 컬렉션의 확장 버전으로, 프롭 게터 패턴은 함수를 통해 동적으로 props를 생성하고 사용자 정의 props와 병합할 수 있는 유연성을 제공합니다.
 
-jsx
 
 ```jsx
 function useToggle() {
@@ -711,36 +631,11 @@ function ToggleComponent() {
 
 프롭 게터 패턴은 사용자가 자신의 props를 추가하면서도 기본 기능을 유지할 수 있는 유연성을 제공합니다.
 
-## 프롭 컬렉션 vs 프롭 게터
-
-| 측면             | 프롭 컬렉션              | 프롭 게터                       |
-| -------------- | ------------------- | --------------------------- |
-| **유연성**        | 제한적 (정적 props 집합)   | 높음 (동적 props 생성, 사용자 정의 병합) |
-| **사용 편의성**     | 매우 간단 (스프레드 구문만 사용) | 약간 복잡 (함수 호출 필요)            |
-| **이벤트 핸들러 충돌** | 충돌 가능성 있음           | 충돌 방지 메커니즘 제공               |
-| **사용 사례**      | 단순한 컴포넌트, 정적 요구사항   | 복잡한 상호작용, 사용자 정의 옵션 필요 시    |
-
-
-## 프롭 컬렉션 패턴의 장점
-
-1. **개발자 경험 향상**: 일반적으로 함께 사용되는 props를 쉽게 적용
-2. **접근성 향상**: 접근성 관련 속성을 쉽게 포함
-3. **일관성 유지**: 관련 컴포넌트 간에 일관된 동작 보장
-4. **코드 간소화**: 반복적인 props 설정 감소
-5. **의도 명확화**: props가 그룹화되어 목적이 명확해짐
-
-## 프롭 컬렉션 패턴의 단점
-
-1. **유연성 제한**: 기본 프롭 컬렉션은 사용자 정의를 위한 유연성이 제한적
-2. **충돌 가능성**: 이벤트 핸들러가 덮어쓰여질 수 있음 (프롭 게터로 해결 가능)
-3. **투명성 부족**: 어떤 props가 실제로 적용되는지 명확하지 않을 수 있음
-4. **과도한 props**: 필요하지 않은 props까지 포함될 수 있음
 
 ## 실제 라이브러리에서의 사용 예: Downshift
 
 [Downshift](https://github.com/downshift-js/downshift)는 프롭 게터 패턴을 효과적으로 활용한 대표적인 라이브러리입니다:
 
-jsx
 
 ```jsx
 import { useSelect } from 'downshift';
@@ -779,7 +674,6 @@ function Dropdown() {
 
 이 예시에서 Downshift는 `getToggleButtonProps`, `getMenuProps`, `getItemProps`와 같은 프롭 게터를 제공하여 접근성이 높은 드롭다운 구현을 간소화합니다.
 
-## 결론
 
 프롭 컬렉션은 React 컴포넌트 API 디자인에서 강력한 패턴으로, 특히 복잡한 UI 컴포넌트를 구현할 때 개발자 경험을 향상시킵니다. 더 고급 유연성이 필요한 경우 프롭 게터 패턴으로 확장할 수 있으며, 두 패턴 모두 현대적인 React 라이브러리와 컴포넌트 디자인에서 널리 사용됩니다.
 
@@ -789,9 +683,6 @@ function Dropdown() {
 
 복합 컴포넌트 패턴은 React에서 관련된 컴포넌트들이 함께 작동하여 복잡한 UI 구성요소를 만드는 디자인 패턴입니다. 이 패턴은 HTML의 `<select>`와 `<option>` 요소처럼 컴포넌트들이 서로 의미적으로 연결되어 함께 동작하는 방식을 모방합니다.
 
-## 기본 개념
-
-복합 컴포넌트 패턴의 핵심 개념은 다음과 같습니다:
 
 1. **부모-자식 관계**: 주요 부모 컴포넌트와 여러 하위 컴포넌트로 구성
 2. **암시적 상태 공유**: 부모 컴포넌트가 내부 상태를 관리하고 자식 컴포넌트와 암시적으로 공유
@@ -800,7 +691,6 @@ function Dropdown() {
 
 ## 기본 구현 예시: 탭 컴포넌트
 
-jsx
 
 ```jsx
 // 복합 컴포넌트 패턴을 사용한 탭 컴포넌트
@@ -888,7 +778,6 @@ export { Tabs };
 
 이 패턴을 사용하면 다음과 같이 선언적이고 직관적인 방식으로 탭 UI를 구성할 수 있습니다:
 
-jsx
 
 ```jsx
 function App() {
@@ -913,8 +802,6 @@ function App() {
 ## React.Children과 React.cloneElement를 사용한 구현
 
 초기의 복합 컴포넌트 패턴은 주로 `React.Children.map`과 `React.cloneElement`를 사용하여 구현되었습니다:
-
-jsx
 
 ```jsx
 function Tabs({ children, defaultIndex = 0 }) {
@@ -966,7 +853,6 @@ function TabList({ children, activeIndex, setActiveIndex }) {
 
 ## 실제 사용 예시: 접근성 있는 아코디언 컴포넌트
 
-jsx
 
 ```jsx
 import React, { createContext, useContext, useState } from 'react';
@@ -1059,7 +945,6 @@ export { Accordion };
 
 사용 예시:
 
-jsx
 
 ```jsx
 function App() {
@@ -1094,7 +979,6 @@ function App() {
 
 ### 복합 컴포넌트 vs Props 기반 구성
 
-jsx
 
 ```jsx
 // 복합 컴포넌트 방식
@@ -1135,31 +1019,7 @@ jsx
 |**구성 스타일**|선언적 JSX 계층 구조|함수 호출과 합성|
 |**적합한 상황**|복잡한 UI 구성 요소|횡단 관심사 (인증, 데이터 로딩 등)|
 
-## 실제 라이브러리에서의 사용 예: React Bootstrap
 
-[React Bootstrap](https://react-bootstrap.github.io/)은 복합 컴포넌트 패턴을 효과적으로 활용한 라이브러리입니다:
-
-jsx
-
-```jsx
-import { Dropdown } from 'react-bootstrap';
-
-function MyDropdown() {
-  return (
-    <Dropdown>
-      <Dropdown.Toggle variant="success" id="dropdown-basic">
-        메뉴 선택
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu>
-        <Dropdown.Item href="#/action-1">작업 1</Dropdown.Item>
-        <Dropdown.Item href="#/action-2">작업 2</Dropdown.Item>
-        <Dropdown.Item href="#/action-3">작업 3</Dropdown.Item>
-      </Dropdown.Menu>
-    </Dropdown>
-  );
-}
-```
 
 ## 효과적인 복합 컴포넌트 설계를 위한 팁
 
@@ -1170,7 +1030,6 @@ function MyDropdown() {
 5. **폴백 처리**: 올바른 계층 구조가 아닐 경우 적절한 오류 메시지나 폴백 UI 제공
 6. **명확한 문서화**: 컴포넌트 구조와 사용 방법에 대한 명확한 문서 제공
 
-## 결론
 
 복합 컴포넌트 패턴은 복잡한 UI 구성요소를 직관적이고 선언적인 방식으로 구현할 수 있게 해주는 강력한 패턴입니다. 이 패턴은 특히 탭, 아코디언, 드롭다운, 메뉴 등 관련 컴포넌트들이 함께 작동해야 하는 UI에 적합합니다. 컴포넌트 라이브러리를 설계할 때 이 패턴을 고려하면 사용자에게 더 유연하고 직관적인 API를 제공할 수 있습니다.
 
@@ -1181,9 +1040,6 @@ function MyDropdown() {
 
 상태 리듀서 패턴은 React에서 컴포넌트 상태 관리를 위한 고급 디자인 패턴으로, 컴포넌트의 상태 변경 로직을 사용자가 재정의하거나 확장할 수 있게 해주는 기법입니다. 이 패턴은 주로 복잡한 상태 로직을 가진 재사용 가능한 컴포넌트나 라이브러리를 만들 때 유용합니다.
 
-## 기본 개념
-
-상태 리듀서 패턴의 핵심 개념은 다음과 같습니다:
 
 1. **리듀서 함수 사용**: 상태 변경을 관리하기 위해 리듀서 함수(`(state, action) => newState`) 사용
 2. **액션 타입 정의**: 컴포넌트의 상태 변경 이벤트를 액션 타입으로 정의
@@ -1194,7 +1050,6 @@ function MyDropdown() {
 
 React의 `useReducer` 훅은 상태 리듀서 패턴의 기본 구현을 제공합니다:
 
-jsx
 
 ```jsx
 // useReducer 기본 사용 예
@@ -1225,8 +1080,6 @@ function Counter() {
 ## 상태 리듀서 패턴 구현 예시
 
 복잡한 토글 컴포넌트에 상태 리듀서 패턴을 적용한 예시입니다:
-
-jsx
 
 ```jsx
 import React, { useReducer } from 'react';
@@ -1291,7 +1144,6 @@ function ToggleComponent() {
 
 상태 리듀서 패턴의 핵심 장점은 기본 동작을 확장하거나 재정의할 수 있다는 것입니다:
 
-jsx
 
 ```jsx
 function App() {
@@ -1320,7 +1172,6 @@ function App() {
 
 컴포넌트 라이브러리를 만들 때는 액션 타입을 공유하여 사용자가 모든 상태 변경을 재정의할 수 있게 하는 것이 중요합니다:
 
-jsx
 
 ```jsx
 function useAccordion({ reducer, initialState = { expandedItems: [] } } = {}) {
@@ -1402,63 +1253,6 @@ function useAccordion({ reducer, initialState = { expandedItems: [] } } = {}) {
 }
 ```
 
-## 사용자 정의 리듀서 예시
-
-jsx
-
-```jsx
-function CustomAccordion({ items }) {
-  // 아코디언의 기본 동작을 수정하는 사용자 정의 리듀서
-  function customReducer(state, action) {
-    // 기본 아코디언 리듀서 가져오기
-    const { actionTypes } = useAccordion();
-    
-    if (action.type === actionTypes.TOGGLE_ITEM) {
-      const { itemId } = action.payload;
-      const isExpanding = !state.expandedItems.includes(itemId);
-      
-      // 확장 시에만 로깅
-      if (isExpanding) {
-        console.log(`아이템 ${itemId} 확장됨`);
-      }
-      
-      // 동시에 하나만 열리도록 제한
-      if (isExpanding) {
-        // 다른 모든 항목은 닫고 선택한 항목만 열기
-        return { ...state, expandedItems: [itemId] };
-      } else {
-        // 선택한 항목 닫기
-        return { ...state, expandedItems: [] };
-      }
-    }
-    
-    // 기본 동작 사용
-    const defaultReducer = useAccordion().defaultReducer;
-    return defaultReducer(state, action);
-  }
-  
-  const { expandedItems, toggleItem } = useAccordion({ reducer: customReducer });
-  
-  return (
-    <div className="accordion">
-      {items.map(item => (
-        <div key={item.id} className="accordion-item">
-          <button
-            onClick={() => toggleItem(item.id)}
-            className="accordion-header"
-            aria-expanded={expandedItems.includes(item.id)}
-          >
-            {item.title}
-          </button>
-          {expandedItems.includes(item.id) && (
-            <div className="accordion-panel">{item.content}</div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-```
 
 ## 상태 리듀서 패턴의 장점
 
@@ -1475,80 +1269,6 @@ function CustomAccordion({ items }) {
 3. **보일러플레이트**: 액션 타입 정의와 리듀서 구현에 코드가 많이 필요
 4. **디버깅 어려움**: 사용자 정의 리듀서가 있을 때 문제 추적이 복잡할 수 있음
 
-## 상태 리듀서 vs 다른 패턴 비교
-
-### 상태 리듀서 vs 제어 컴포넌트
-
-|측면|상태 리듀서|제어 컴포넌트|
-|---|---|---|
-|**상태 제어**|상태 변경 로직 제어|상태 값 직접 제어|
-|**유연성**|기존 로직 확장 가능|전체 상태 관리 대체|
-|**복잡성**|더 복잡한 구현|비교적 단순한 구현|
-|**적합한 상황**|복잡한 상태 전이 로직이 있는 컴포넌트|단순한 입력 필드나 폼 요소|
-
-### 상태 리듀서 vs 렌더 프롭
-
-|측면|상태 리듀서|렌더 프롭|
-|---|---|---|
-|**제어 목적**|상태 변경 로직 제어|렌더링 출력 제어|
-|**패턴 유형**|상태 관리 패턴|UI 구성 패턴|
-|**확장성**|액션 핸들링 확장|UI 렌더링 확장|
-|**적합한 상황**|상태 전이 로직 제어가 필요한 경우|UI 변형이 많은 경우|
-
-## 실제 라이브러리에서의 사용 예: Downshift
-
-[Downshift](https://github.com/downshift-js/downshift)는 상태 리듀서 패턴을 효과적으로 활용한 라이브러리입니다:
-
-jsx
-
-```jsx
-import { useSelect } from 'downshift';
-
-function CustomSelect() {
-  // 사용자 정의 상태 리듀서 구현
-  function stateReducer(state, actionAndChanges) {
-    const { type, changes } = actionAndChanges;
-    
-    // 특별한 경우 처리: 선택 후 메뉴가 닫히지 않도록 설정
-    switch (type) {
-      case useSelect.stateChangeTypes.ItemClick:
-        // 선택 시 isOpen 상태를 true로 유지
-        return { ...changes, isOpen: true };
-      default:
-        // 기본 동작 유지
-        return changes;
-    }
-  }
-  
-  const {
-    isOpen,
-    selectedItem,
-    getToggleButtonProps,
-    getMenuProps,
-    getItemProps
-  } = useSelect({
-    items: ['사과', '바나나', '오렌지', '포도'],
-    stateReducer
-  });
-
-  return (
-    <div>
-      <button {...getToggleButtonProps()}>
-        {selectedItem || '과일 선택'}
-      </button>
-      
-      <ul {...getMenuProps()} style={{ display: isOpen ? 'block' : 'none' }}>
-        {isOpen &&
-          ['사과', '바나나', '오렌지', '포도'].map((item, index) => (
-            <li key={`${item}${index}`} {...getItemProps({ item, index })}>
-              {item}
-            </li>
-          ))}
-      </ul>
-    </div>
-  );
-}
-```
 
 ## 효과적인 상태 리듀서 패턴 구현을 위한 팁
 
@@ -1559,7 +1279,6 @@ function CustomSelect() {
 5. **사용자 정의 예시 제공**: 사용자 정의 리듀서 구현 예시 제공
 6. **불변성 유지**: 리듀서에서 상태 불변성 원칙 준수
 
-## 결론
 
 상태 리듀서 패턴은 복잡한 상태 관리 로직을 가진 재사용 가능한 컴포넌트를 만들 때 강력한 도구입니다. 이 패턴은 컴포넌트의 기본 동작을 제공하면서도 사용자에게 상태 변경에 대한 완전한 제어권을 제공합니다. 특히 UI 라이브러리나 복잡한 폼 컴포넌트와 같이 다양한 상황에서 유연하게 동작해야 하는 컴포넌트에 적합합니다. 이 패턴의 복잡성에도 불구하고, 제공하는 유연성과 제어성은 복잡한 컴포넌트 API 설계에서 큰 가치를 제공합니다.
 
