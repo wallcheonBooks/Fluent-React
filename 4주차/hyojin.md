@@ -681,7 +681,7 @@ function Dropdown() {
 
 # 복합 컴포넌트(Compound Components) 패턴
 
-복합 컴포넌트 패턴은 React에서 관련된 컴포넌트들이 함께 작동하여 복잡한 UI 구성요소를 만드는 디자인 패턴입니다. 이 패턴은 HTML의 `<select>`와 `<option>` 요소처럼 컴포넌트들이 서로 의미적으로 연결되어 함께 동작하는 방식을 모방합니다.
+복합 컴포넌트 패턴은 React에서 관련된 컴포넌트들이 함께 작동하여 복잡한 UI 구성요소를 만드는 디자인 패턴입니다. 이 패턴은 HTML의 `<select>`와 `<option>` 요소처럼 컴포넌트들이 서로 의미적으로 연결되어 함께 동작하는 방식을 모방합니다.
 
 
 1. **부모-자식 관계**: 주요 부모 컴포넌트와 여러 하위 컴포넌트로 구성
@@ -801,7 +801,7 @@ function App() {
 
 ## React.Children과 React.cloneElement를 사용한 구현
 
-초기의 복합 컴포넌트 패턴은 주로 `React.Children.map`과 `React.cloneElement`를 사용하여 구현되었습니다:
+초기의 복합 컴포넌트 패턴은 주로 `React.Children.map`과 `React.cloneElement`를 사용하여 구현되었습니다:
 
 ```jsx
 function Tabs({ children, defaultIndex = 0 }) {
@@ -1285,7 +1285,9 @@ function useAccordion({ reducer, initialState = { expandedItems: [] } } = {}) {
 
 
 ---
-# 복습하기
+
+<details>
+<summary>복습하기</summary>
 
 ## 1. 리액트에서 메모화란 무엇이며, 컴포넌트 렌더링을 최적화하는 데 어떻게 사용할 수 있을까?
 
@@ -1896,3 +1898,4 @@ function ParentComponent() {
 ```
 
 메모화는 리액트 애플리케이션 최적화를 위한 강력한 도구이지만, 필요한 경우에만 선택적으로 사용하고 항상 성능 측정을 통해 실제 개선 효과를 확인하는 것이 중요합니다.
+</details>
