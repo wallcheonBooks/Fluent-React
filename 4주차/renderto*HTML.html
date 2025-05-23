@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Streaming API 선택 가이드</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+        }
+        
+        .comparison-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .api-name {
+            font-weight: 600;
+            color: #e74c3c;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .environment {
+            background-color: #e3f2fd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        .use-case {
+            background-color: #f1f8e9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        .pros {
+            color: #27ae60;
+        }
+        
+        .cons {
+            color: #e74c3c;
+        }
+        
+        .decision-tree {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .tree-node {
+            margin: 20px 0;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            background-color: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .tree-question {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .tree-answer {
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 6px;
+        }
+        
+        .tree-pipeable {
+            background-color: #e8f5e8;
+            border-left: 3px solid #27ae60;
+        }
+        
+        .tree-readable {
+            background-color: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+        
+        .code-example {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .example-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .example-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 React Streaming API 선택 가이드</h1>
+        <p>renderToPipeableStream vs renderToReadableStream</p>
+    </div>
+    
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>API</th>
+                    <th>환경</th>
+                    <th>스트림 타입</th>
+                    <th>주요 사용처</th>
+                    <th>장점</th>
+                    <th>단점</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="api-name">renderToPipeableStream</td>
+                    <td>
+                        <span class="environment">Node.js</span>
+                        <span class="environment">Express</span>
+                        <span class="environment">Next.js</span>
+                        <span class="environment">Koa</span>
+                    </td>
+                    <td>Node.js Streams</td>
+                    <td>
+                        <span class="use-case">전통적인 서버</span>
+                        <span class="use-case">복잡한 백엔드</span>
+                        <span class="use-case">캐싱 시스템</span>
+                    </td>
+                    <td class="pros">
+                        • 성숙한 Node.js 생태계<br>
+                        • 풍부한 미들웨어<br>
+                        • Transform 스트림 지원
+                    </td>
+                    <td class="cons">
+                        • Node.js 전용<br>
+                        • 콜드 스타트 느림<br>
+                        • 서버 리소스 필요
+                    </td>
+                </tr>
+                <tr>
+                    <td class="api-name">renderToReadableStream</td>
+                    <td>
+                        <span class="environment">Edge Runtime</span>
+                        <span class="environment">Cloudflare</span>
+                        <span class="environment">Deno</span>
+                        <span class="environment">Vercel Edge</span>
+                    </td>
+                    <td>Web Streams API</td>
+                    <td>
+                        <span class="use-case">서버리스</span>
+                        <span class="use-case">엣지 컴퓨팅</span>
+                        <span class="use-case">글로벌 배포</span>
+                    </td>
+                    <td class="pros">
+                        • 빠른 콜드 스타트<br>
+                        • 글로벌 엣지 배포<br>
+                        • 웹 표준 준수
+                    </td>
+                    <td class="cons">
+                        • 제한된 런타임<br>
+                        • Node.js API 미지원<br>
+                        • 디버깅 어려움
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="decision-tree">
+        <h2>🤔 어떤 API를 선택해야 할까?</h2>
+        
+        <div class="tree-node">
+            <div class="tree-question">1. 배포 환경이 무엇인가요?</div>
+            <div class="tree-answer tree-pipeable">
+                <strong>Node.js 서버 (AWS EC2, Google Cloud, 온프레미스)</strong><br>
+                → <span class="highlight">renderToPipeableStream</span> 사용
+            </div>
+            <div class="tree-answer tree-readable">
+                <strong>서버리스/엣지 환경 (Vercel Edge, Cloudflare Workers, Deno Deploy)</strong><br>
+                → <span class="highlight">renderToReadableStream</span> 사용
+            </div>
+        </div>
+        
+        <div class="tree-node">
+            <div class="tree-question">2. 복잡한 서버 로직이 필요한가요?</div>
+            <div class="tree-answer tree-pipeable">
+                <strong>예: 파일 시스템, 데이터베이스 커넥션 풀, 복잡한 캐싱</strong><br>
+                → <span class="highlight">renderToPipeableStream</span> 추천
+            </div>
+            <div class="tree-answer tree-readable">
+                <strong>아니오: 단순한 API 호출, 정적 콘텐츠</strong><br>
+                → <span class="highlight">renderToReadableStream</span> 가능
+            </div>
+        </div>
+        
+        <div class="tree-node">
+            <div class="tree-question">3. 글로벌 배포와 빠른 응답이 중요한가요?</div>
+            <div class="tree-answer tree-readable">
+                <strong>예: 전세계 사용자, 낮은 지연시간 필요</strong><br>
+                → <span class="highlight">renderToReadableStream</span> + Edge Runtime
+            </div>
+            <div class="tree-answer tree-pipeable">
+                <strong>아니오: 특정 지역, 복잡한 비즈니스 로직</strong><br>
+                → <span class="highlight">renderToPipeableStream</span> + Node.js
+            </div>
+        </div>
+        
+        <div class="tree-node">
+            <div class="tree-question">4. 기존 인프라와의 호환성이 중요한가요?</div>
+            <div class="tree-answer tree-pipeable">
+                <strong>예: 기존 Express 앱, Node.js 미들웨어 사용</strong><br>
+                → <span class="highlight">renderToPipeableStream</span> 선택
+            </div>
+            <div class="tree-answer tree-readable">
+                <strong>아니오: 새로운 프로젝트, 모던 아키텍처</strong><br>
+                → <span class="highlight">renderToReadableStream</span> 고려
+            </div>
+        </div>
+    </div>
+    
+    <div class="example-section">
+        <div class="example-title">💼 실제 사용 사례</div>
+        
+        <h3>renderToPipeableStream이 적합한 경우:</h3>
+        <ul>
+            <li><strong>E-commerce 플랫폼:</strong> 복잡한 재고 관리, 결제 시스템</li>
+            <li><strong>CMS:</strong> 파일 업로드, 이미지 처리, 복잡한 권한 관리</li>
+            <li><strong>기업용 대시보드:</strong> 데이터베이스 집약적, 복잡한 비즈니스 로직</li>
+            <li><strong>레거시 마이그레이션:</strong> 기존 Express 앱을 React로 점진적 전환</li>
+        </ul>
+        
+        <div class="code-example">
+// 복잡한 비즈니스 로직 예시
+app.get('/dashboard', async (req, res) => {
+  // 복잡한 인증, 권한 체크
+  const user = await authenticateUser(req);
+  const permissions = await getComplicatedPermissions(user);
+  
+  const { pipe } = renderToPipeableStream(
+    &lt;Dashboard user={user} permissions={permissions} /&gt;, {
+    onShellReady() {
+      pipe(res);
+    }
+  });
+});
+        </div>
+        
+        <h3>renderToReadableStream이 적합한 경우:</h3>
+        <ul>
+            <li><strong>블로그/뉴스 사이트:</strong> 전세계 빠른 배포, CDN 활용</li>
+            <li><strong>마케팅 랜딩페이지:</strong> 빠른 로딩, 글로벌 접근성</li>
+            <li><strong>개인 포트폴리오:</strong> 간단한 구조, 서버리스 배포</li>
+            <li><strong>실시간 데이터 대시보드:</strong> 엣지에서 API 집계</li>
+        </ul>
+        
+        <div class="code-example">
+// 엣지 런타임에서 글로벌 배포
+export default async function handler(request) {
+  const stream = await renderToReadableStream(&lt;BlogPost /&gt;, {
+    onError: console.error
+  });
+  
+  return new Response(stream, {
+    headers: {
+      'Cache-Control': 'public, max-age=3600',
+      'CDN-Cache-Control': 'public, max-age=86400'
+    }
+  });
+}
+        </div>
+    </div>
+    
+    <div style="background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <h2>📋 요약</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <div>
+                <h3 style="color: #27ae60;">renderToPipeableStream 선택</h3>
+                <ul>
+                    <li>Node.js 환경</li>
+                    <li>복잡한 서버 로직</li>
+                    <li>기존 Express/Koa 앱</li>
+                    <li>Transform 스트림 필요</li>
+                    <li>서버 리소스 충분</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="color: #2196f3;">renderToReadableStream 선택</h3>
+                <ul>
+                    <li>서버리스/엣지 환경</li>
+                    <li>글로벌 빠른 배포</li>
+                    <li>간단한 로직</li>
+                    <li>콜드 스타트 최적화</li>
+                    <li>웹 표준 준수</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
